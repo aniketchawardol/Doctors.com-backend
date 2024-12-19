@@ -4,11 +4,18 @@
   "description": "a full stack project for a platform for hospitals and patients",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon src/index.js"
   },
   "keywords": [
     "javascript"
   ],
+  "type": "module",
   "author": "aniket chawardol",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "npm": "^11.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
 }
