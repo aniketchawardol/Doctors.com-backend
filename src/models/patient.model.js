@@ -37,12 +37,10 @@ const patientSchema = new Schema(
     },
     phonenumber: {
       type: String,
-      required: true,
       trim: true,
     },
     profilephoto: {
       type: String, //cloudinary url
-      required: true,
     },
     reports: {
       type: [String], //cloudinary url
@@ -58,11 +56,9 @@ const patientSchema = new Schema(
     ],
     dob: {
       type: Date,
-      required: true,
     },
     bloodgroup: {
       type: String,
-      required: true,
     },
     gender: {
       type: String,
@@ -85,11 +81,13 @@ patientSchema.methods.verifyPassword = async function (password) {
 };
 
 patientSchema.methods.generateAccessToken = function () {
-  return jwt.sign({ _id: this._id,
-    email: this.email,
-   }, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
-  });
+  return jwt.sign(
+    { _id: this._id, email: this.email },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+    }
+  );
 };
 
 patientSchema.methods.generateRefreshToken = function () {
