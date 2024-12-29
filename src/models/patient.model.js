@@ -55,7 +55,7 @@ const patientSchema = new Schema(
       },
     ],
     dob: {
-      type: Date,
+      type: String,
     },
     bloodgroup: {
       type: String,
@@ -63,6 +63,9 @@ const patientSchema = new Schema(
     gender: {
       type: String,
     },
+    refreshToken: {
+      type: String
+  }
   },
   {
     timestamps: true,
@@ -82,7 +85,7 @@ patientSchema.methods.verifyPassword = async function (password) {
 
 patientSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { _id: this._id, email: this.email },
+    { _id: this._id },
     process.env.ACCESS_TOKEN_SECRET,
     {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY,

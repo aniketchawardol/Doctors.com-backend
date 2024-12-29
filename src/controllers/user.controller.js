@@ -1,7 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Patient } from "../models/patient.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
@@ -37,24 +40,24 @@ const registerUser = asyncHandler(async (req, res) => {
   if (profilephotolocalpath) {
     uploadedPhoto = await uploadOnCloudinary(profilephotolocalpath);
   }
-  const patient = await Patient.create({
+  const user = await Patient.create({
     fullname,
     email,
     password,
     profilephoto: uploadedPhoto?.url || "",
   });
 
-  const createdPatient = await Patient.findById(patient._id).select(
+  const createdUser = await Patient.findById(user._id).select(
     "-password -refreshToken"
   );
 
-  if (!createdPatient) {
+  if (!createdUser) {
     throw new ApiError(500, "Error creating user");
   }
 
   return res
     .status(201)
-    .json(new ApiResponse(201, createdPatient, "User created successfully"));
+    .json(new ApiResponse(201, createdUser, "User created successfully"));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -98,7 +101,6 @@ const loginUser = asyncHandler(async (req, res) => {
         {
           user: loggedInUser,
           accessToken,
-          refreshToken,
         },
         "User logged in successfully"
       )
@@ -125,8 +127,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+  const incomingRefreshToken = req.cookies.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "unauthorized request");
@@ -137,37 +138,236 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-  
+
     const user = await Patient.findById(decodedToken?._id);
-  
+
     if (!user) {
-      throw new ApiError(401, "Invalid user");
+      throw new ApiError(401, "Invalid refresh token");
     }
-  
-    if (user.refreshToken !== incomingRefreshToken) {
-      throw new ApiError(401, "expired refresh token");
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, "Refresh token is expired or used");
     }
-  
+
     const options = {
       httpOnly: true,
       secure: true,
     };
-  
-    const { accessToken, newrefreshToken } = await generateAccessandRefreshToken(
-      user._id
-    );
-  
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessandRefreshToken(user._id);
+
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newrefreshToken, options)
-      .json(new ApiResponse(200, { accessToken, newrefreshToken },
-        "Access token refreshed successfully"
-      ));
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken },
+          "Access token refreshed"
+        )
+      );
   } catch (error) {
-    throw new ApiError(401, error.message);
-    
+    throw new ApiError(401, error?.message || "Invalid refresh token");
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "User fetched successfully"));
+});
+
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const { fullname, email, phonenumber, dob, bloodgroup, gender } = req.body;
+
+  if ([fullname, email].some((field) => field.trim() === "")) {
+    throw new ApiError(400, "fullname, email are required");
+  }
+
+  const profilephotolocalpath = req.file?.path;
+
+  let uploadedPhoto;
+
+  const existedUser = await Patient.findById(req.user._id);
+
+  if (!existedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (profilephotolocalpath) {
+    if (existedUser.profilephoto) {
+      await deleteFromCloudinary(existedUser.profilephoto);
+    }
+    uploadedPhoto = await uploadOnCloudinary(profilephotolocalpath);
+  }
+
+  const user = await Patient.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        fullname,
+        email,
+        phonenumber,
+        dob,
+        bloodgroup,
+        gender,
+        profilephoto: uploadedPhoto?.url || existedUser.profilephoto,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, user, "User updated successfully"));
+});
+
+const uploadReports = asyncHandler(async (req, res) => {
+  const existedUser = await Patient.findById(req.user._id);
+
+  if (!existedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (!req.files || req.files.length === 0) {
+    throw new ApiError(400, "No files uploaded");
+  }
+  
+  const reportslocalpath = req.files.map((file) => file.path);
+
+  const uploadedReports = [];
+
+  for (const report of reportslocalpath) {
+    const uploadedReport = await uploadOnCloudinary(report);
+    uploadedReports.push(uploadedReport.url);
+  }
+
+  const user = await Patient.findByIdAndUpdate(
+    req.user._id,
+    {
+      $push: {
+        reports: uploadedReports,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, user, "Reports uploaded successfully"));
+});
+
+const uploadHiddenReports = asyncHandler(async (req, res) => {
+  const existedUser = await Patient.findById(req.user._id);
+
+  if (!existedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (!req.files || req.files.length === 0) {
+    throw new ApiError(400, "No files uploaded");
+  }
+
+  const reportslocalpath = req.files.map((file) => file.path);
+
+  const uploadedReports = [];
+
+  for (const report of reportslocalpath) {
+    const uploadedReport = await uploadOnCloudinary(report);
+    uploadedReports.push(uploadedReport.url);
+  }
+
+  const user = await Patient.findByIdAndUpdate(
+    req.user._id,
+    {
+      $push: {
+        hiddenreports: uploadedReports,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, user, "Reports uploaded successfully"));
+});
+
+const deleteReports = asyncHandler(async (req, res) => {
+  const existedUser = await Patient.findById(req.user._id);
+
+  if(!existedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const { reportUrls } = req.body;
+
+  if(!reportUrls || reportUrls.length === 0) {
+    throw new ApiError(400, "No reports to delete");
+  }
+
+  reportUrls.forEach(async (reportUrl) => {
+    await deleteFromCloudinary(reportUrl);
+  });
+
+  const user = await Patient.findByIdAndUpdate(
+    req.user._id,
+    {
+      $pull: {
+        reports: { $in: reportUrls },
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Reports deleted successfully"));
+});
+
+const deleteHiddenReports = asyncHandler(async (req, res) => {
+  const existedUser = await Patient.findById(req.user._id);
+
+  if(!existedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const { reportUrls } = req.body;
+
+  if(!reportUrls || reportUrls.length === 0) {
+    throw new ApiError(400, "No reports to delete");
+  }
+
+  reportUrls.forEach(async (reportUrl) => {
+    await deleteFromCloudinary(reportUrl);
+  });
+
+  const user = await Patient.findByIdAndUpdate(
+    req.user._id,
+    {
+      $pull: {
+        hiddenreports: { $in: reportUrls },
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Reports deleted successfully"));
+});
+
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  getCurrentUser,
+  updateUserProfile,
+  uploadReports,
+  uploadHiddenReports,
+  deleteReports,
+  deleteHiddenReports,
+};
