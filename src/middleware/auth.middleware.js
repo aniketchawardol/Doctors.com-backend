@@ -15,7 +15,7 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
   
     const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
   
-    const user = await Patient.findById(decodedToken?._id).select("-password -refreshToken");
+    const user = await Patient.findById(decodedToken?._id).select("-password -refreshToken").populate({path: "hospitals", select: "-password -refreshToken -patients -otherphotos "});
     
     if(!user) {
       throw new ApiError(404, "User not found");

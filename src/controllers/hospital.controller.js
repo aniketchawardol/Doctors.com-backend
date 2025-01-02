@@ -7,6 +7,7 @@ import {
 } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import { Patient } from "../models/patient.model.js";
 
 const generateAccessandRefreshToken = async (hospitalId) => {
   try {
@@ -318,10 +319,10 @@ const deletePhotos = asyncHandler(async (req, res) => {
 });
 
 const getAllHospitals = asyncHandler(async (req, res) => {
-  const { p , l  } = req.query;
+  const { page , limit  } = req.query;
 
-  const page = parseInt(p) || 1;
-  const limit = parseInt(l) || 10;
+  const p = parseInt(page) || 1;
+  const l = parseInt(limit) || 10;
 
   const totalCount = await Hospital.countDocuments();
   
@@ -332,7 +333,7 @@ const getAllHospitals = asyncHandler(async (req, res) => {
         refreshToken: 0
       }
     }
-  ]).skip((page - 1) * limit).limit(limit);
+  ]).skip((p - 1) * l).limit(l);
 
 
 
@@ -341,14 +342,17 @@ const getAllHospitals = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, hospitals, totalCount, "Hospitals fetched successfully"));
 });
 
-const getHospitalsByLocation = asyncHandler(async (req, res) => {
-  const { location } = req.params;
+const getHospitalsByName = asyncHandler(async (req, res) => {
+  const { name } = req.params;
   const { page = 1, limit = 10 } = req.query;
+
+  const p = parseInt(page) || 1;
+  const l = parseInt(limit) || 10;
 
   const hospitals = await Hospital.aggregate([
     {
       $match: {
-        location: new RegExp(location, 'i')
+        hospitalname: new RegExp(name, 'i')
       }
     },
     {
@@ -357,11 +361,13 @@ const getHospitalsByLocation = asyncHandler(async (req, res) => {
         refreshToken: 0
       }
     }
-  ]).skip((page - 1) * limit).limit(limit);
+  ]).skip((p - 1) * l).limit(l);
+
+  const totalCount = hospitals.length;
 
   return res
     .status(200)
-    .json(new ApiResponse(200, hospitals, "Hospitals fetched successfully"));
+    .json(new ApiResponse(200, hospitals, totalCount, "Hospitals fetched successfully"));
 });
 
 const getHospitalById = asyncHandler(async (req, res) => {
@@ -378,6 +384,45 @@ const getHospitalById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, hospital, "Hospital fetched successfully"));
 });
 
+const addPatient = asyncHandler(async (req, res) => {
+  const { hospitalId } = req.body;
+
+  const existedHospital = await Hospital.findById(hospitalId);
+
+  if (!existedHospital) {
+    throw new ApiError(404, "Hospital not found");
+  }
+
+  const patient = await Patient.findById(req.user._id);
+
+  if (!patient) {
+    throw new ApiError(404, "Patient not found");
+  }
+
+  const hospital = await Hospital.findByIdAndUpdate(
+    hospitalId,
+    {
+      $addToSet: {
+        patients: req.user._id,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  await Patient.findByIdAndUpdate(
+    req.user._id,
+    {
+      $addToSet: {
+        hospitals: hospitalId,
+      },
+    },
+  )
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, hospital, "Patient added successfully"));
+});
+
 export {
   registerHospital,
   loginHospital,
@@ -388,6 +433,7 @@ export {
   uploadOtherPhotos,
   deletePhotos,
   getAllHospitals,
-  getHospitalsByLocation,
-  getHospitalById
+  getHospitalsByName,
+  getHospitalById,
+  addPatient,
 };
