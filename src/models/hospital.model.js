@@ -35,7 +35,6 @@ const hospitalSchema = new Schema(
     },
     profilephoto: {
       type: String, //cloudinary url
-      required: true,
     },
     otherphotos: {
       type: [String], //cloudinary url
@@ -46,19 +45,15 @@ const hospitalSchema = new Schema(
     },
     specializations: {
       type: [String],
-      required: true,
     },
     openingtime: {
       type: String,
-      required: true,
     },
     closingtime: {
       type: String,
-      required: true,
     },
     description: {
       type: String,
-      required: true,
     },
     patients: [{
       type: Schema.Types.ObjectId,
@@ -66,7 +61,7 @@ const hospitalSchema = new Schema(
     }],
     location: {
       type: String,
-      required: true,
+      index: true,
     },
     password: {
       type: String,
