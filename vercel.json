@@ -9,7 +9,11 @@
   "routes": [
     {
       "src": "./src/(.*)",
-      "dest": "/index.js"
+      "dest": "/index.js",
+      "methods": ["GET", "POST"],
+      "headers": {
+        "Access-Control-Allow-Origin": "https://doctors-one-flax.vercel.app/"
+      }
     }
   ]
 }
