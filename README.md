@@ -20,10 +20,6 @@ Doctors.com backend provides API endpoints and functionalities to manage hospita
 ## Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-repository/doctors.com-backend.git
-   cd doctors.com-backend
-   ```
 
 2. Install dependencies:
    ```bash
