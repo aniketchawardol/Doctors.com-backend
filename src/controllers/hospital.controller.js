@@ -108,6 +108,8 @@ const loginHospital = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+    sameSite: 'None',          
+    maxAge: 7 * 24 * 60 * 60 * 1000, 
   };
 
   return res
@@ -136,6 +138,8 @@ const logoutHospital = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+    sameSite: 'None',        
+    maxAge: 7 * 24 * 60 * 60 * 1000, 
   };
 
   return res
@@ -171,6 +175,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const options = {
       httpOnly: true,
       secure: true,
+      sameSite: 'None',        
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
     };
 
     const { accessToken, refreshToken } = await generateAccessandRefreshToken(hospital._id);

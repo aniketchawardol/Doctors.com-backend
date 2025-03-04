@@ -35,7 +35,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with same email already exists");
   }
 
-  const profilephotolocalpath = req.files?.profilephoto[0]?.path;
+  const profilephotolocalpath = req.file?.path;
   let uploadedPhoto;
   if (profilephotolocalpath) {
     uploadedPhoto = await uploadOnCloudinary(profilephotolocalpath);
@@ -89,6 +89,8 @@ const loginUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+    sameSite: 'None',          // allows cross-site requests
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
   return res
@@ -117,6 +119,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+    sameSite: 'None',       
+    maxAge: 7 * 24 * 60 * 60 * 1000, 
   };
 
   return res
@@ -152,6 +156,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const options = {
       httpOnly: true,
       secure: true,
+      sameSite: 'None',          
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
     };
 
     const { accessToken, refreshToken } =
