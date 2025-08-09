@@ -18,9 +18,15 @@ app.use(cookieParser());
 
 import userRouter from "./routes/user.routes.js";
 
-app.use("/api/v1/users", userRouter)
+app.use("/api/v1/users", userRouter);
+
+function ping(req, res) {
+  res.status(200).json({ message: "pong" });
+}
+
+app.use("/api/ping", ping);
 
 import hospitalRouter from "./routes/hospital.routes.js";
 
-app.use("/api/v1/hospitals", hospitalRouter)
+app.use("/api/v1/hospitals", hospitalRouter);
 export { app };
